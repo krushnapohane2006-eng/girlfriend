@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Be My Girlfriend? 💌</title>
+  <!-- EmailJS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script>
+    // 🎨 STEP 1: Apni EmailJS Public Key yahan daalo
+    emailjs.init("YOUR_PUBLIC_KEY");
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Cormorant+Garamond:ital,wght@0,300;1,300&family=Dancing+Script:wght@700&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --rose:      #c8002f;
+      --rose-dark: #7a0019;
+      --gold:      #d4a04a;
+      --text-main: #3b0010;
+    }
+
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    html, body { width:100%; height:100%; overflow:hidden; }
+
+    /* ── CANVAS BG ── */
+    #bgCanvas { position:fixed; inset:0; z-index:0; }
+
+    /* ── NOISE TEXTURE ── */
+    body::before {
+      content:"";
+      position:fixed; inset:0; z-index:1;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+      background-size:180px; pointer-events:none; opacity:0.55;
+    }
+
+    /* ── PETALS ── */
+    #petals { position:fixed; inset:0; z-index:2; pointer-events:none; overflow:hidden; }
+
+    /* ── STAGE ── */
+    .stage {
+      position:relative; z-index:10;
+      width:100%; height:100%;
+      display:flex; align-items:center; justify-content:center;
+    }
+
+    /* ── CARD ── */
+    .card {
+      position:relative;
+      width:min(460px, 90vw);
+      padding:28px 34px 28px;
+      text-align:center;
+      border-radius:28px;
+      background:linear-gradient(155deg,rgba(255,245,240,0.9) 0%,rgba(255,218,228,0.82) 50%,rgba(255,245,240,0.9) 100%);
+      backdrop-filter:blur(18px) saturate(1.4);
+      -webkit-backdrop-filter:blur(18px) saturate(1.4);
+      border:1.5px solid rgba(212,160,74,0.35);
+      box-shadow:0 8px 48px rgba(122,0,25,0.22),0 2px 0 rgba(255,255,255,0.7) inset;
+      animation:cardFloat 6s ease-in-out infinite;
+      /* NO overflow:hidden — never clips anything */
+    }
+    .card::before { content:"✦"; position:absolute; top:14px; left:18px; color:var(--gold); opacity:0.6; font-size:20px; }
+    .card::after  { content:"✦"; position:absolute; bottom:14px; right:18px; color:var(--gold); opacity:0.6; font-size:20px; }
+
+    .card-inner-border {
+      position:absolute; inset:9px; border-radius:20px;
+      border:1px dashed rgba(212,160,74,0.28); pointer-events:none;
+    }
+
+    /* ── IMAGE ── */
+    .gif-wrap { position:relative; display:inline-block; margin-bottom:14px; }
+    .gif-wrap::after {
+      content:""; position:absolute; inset:-6px; border-radius:50%;
+      border:2.5px solid var(--gold); opacity:0.55;
+      animation:ringPulse 3s ease-in-out infinite;
+    }
+    #mainImage {
+      width:130px; height:130px; object-fit:cover;
+      border-radius:50%; border:4px solid rgba(255,255,255,0.9);
+      box-shadow:0 6px 28px rgba(200,0,47,0.3); display:block;
+    }
+
+    /* ── QUESTION ── */
+    #question {
+      font-family:'Dancing Script',cursive;
+      font-size:clamp(1.6rem,4.5vw,2.3rem);
+      color:var(--rose-dark); line-height:1.3; margin-bottom:7px;
+      text-shadow:0 1px 0 rgba(255,255,255,0.8);
+    }
+
+    .tagline {
+      font-family:'Cormorant Garamond',serif; font-style:italic;
+      font-size:0.92rem; color:rgba(59,0,16,0.55);
+      margin-bottom:12px; letter-spacing:0.04em;
+    }
+
+    .divider {
+      display:flex; align-items:center; gap:10px;
+      margin-bottom:14px; opacity:0.5;
+    }
+    .divider span { flex:1; height:1px; background:linear-gradient(90deg,transparent,var(--gold),transparent); }
+    .divider em { font-size:15px; }
+
+    /* ── YES BUTTON — inside card, never grows too big ── */
+    .btn-wrap { display:flex; justify-content:center; }
+
+    #yesBtn {
+      font-family:'Playfair Display',serif;
+      font-weight:700; font-size:1.05rem;
+      padding:13px 34px; border:none; border-radius:50px; cursor:pointer;
+      background:linear-gradient(135deg,#c8002f 0%,#7a0019 100%);
+      color:#fff; box-shadow:0 4px 18px rgba(200,0,47,0.45);
+      position:relative; overflow:hidden;
+      transition:transform 0.2s ease, box-shadow 0.2s ease;
+      letter-spacing:0.03em;
+      max-width:calc(min(460px,90vw) - 70px); /* HARD MAX — never wider than card */
+    }
+    #yesBtn::after {
+      content:""; position:absolute; top:0; left:-60%;
+      width:40%; height:100%;
+      background:linear-gradient(90deg,transparent,rgba(255,255,255,0.25),transparent);
+      transform:skewX(-20deg);
+      animation:shimmer 3s infinite 1.5s;
+    }
+    #yesBtn:hover { transform:translateY(-3px) scale(1.04); box-shadow:0 8px 28px rgba(200,0,47,0.55); }
+
+    /* ══════════════════════════════════════════════════════
+       ✅ NO BUTTON — position:fixed FROM THE VERY START
+       It lives on the screen, NOT inside the card.
+       Body overflow:hidden, card clipping — NOTHING can hide it.
+    ══════════════════════════════════════════════════════ */
+    #noBtn {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 99999;
+      font-family:'Playfair Display',serif;
+      font-weight:700; font-size:1rem;
+      padding:12px 32px; border-radius:50px; cursor:pointer;
+
+      /* Always visible — bright white bg, dark text, strong border */
+      background: #ffffff;
+      color: #7a0019;
+      border: 2.5px solid #c8002f;
+
+      /* Multi-layer shadow so it pops on ANY background */
+      box-shadow:
+        0 0 0 3px rgba(255,255,255,0.9),      /* white halo ring */
+        0 0 16px 4px rgba(200,0,47,0.55),      /* red glow */
+        0 4px 18px rgba(0,0,0,0.35);           /* dark drop shadow */
+
+      white-space:nowrap;
+      animation: noPulse 2s ease-in-out infinite;
+      transition: transform 0.15s ease;
+    }
+    #noBtn:hover {
+      transform: translateX(-50%) scale(1.08);
+      box-shadow:
+        0 0 0 4px rgba(255,255,255,1),
+        0 0 24px 8px rgba(200,0,47,0.7),
+        0 6px 22px rgba(0,0,0,0.4);
+    }
+
+    /* Pulsing glow so it's always noticeable */
+    @keyframes noPulse {
+      0%,100% {
+        box-shadow:
+          0 0 0 3px rgba(255,255,255,0.9),
+          0 0 14px 3px rgba(200,0,47,0.45),
+          0 4px 18px rgba(0,0,0,0.3);
+      }
+      50% {
+        box-shadow:
+          0 0 0 5px rgba(255,255,255,1),
+          0 0 26px 8px rgba(200,0,47,0.75),
+          0 4px 22px rgba(0,0,0,0.4);
+      }
+    }
+
+    /* ── SUCCESS ── */
+    .success-msg {
+      font-family:'Dancing Script',cursive;
+      font-size:2rem; color:var(--rose-dark);
+      animation:popIn 0.5s cubic-bezier(.36,.07,.19,.97);
+    }
+
+    @keyframes cardFloat {
+      0%,100% { transform:translateY(0); }
+      50%      { transform:translateY(-9px); }
+    }
+    @keyframes ringPulse {
+      0%,100% { transform:scale(1);    opacity:0.55; }
+      50%      { transform:scale(1.08); opacity:0.85; }
+    }
+    @keyframes shimmer {
+      0%   { left:-60%; }
+      100% { left:130%; }
+    }
+    @keyframes popIn {
+      0%  { transform:scale(0.6); opacity:0; }
+      60% { transform:scale(1.15); }
+      100%{ transform:scale(1);   opacity:1; }
+    }
+    @keyframes petalFall {
+      0%   { transform:translateY(-80px) rotate(0deg) scale(1);   opacity:0; }
+      10%  { opacity:1; }
+      100% { transform:translateY(110vh) rotate(720deg) scale(0.6); opacity:0; }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="bgCanvas"></canvas>
+<div id="petals"></div>
+
+<div class="stage">
+  <div class="card">
+    <div class="card-inner-border"></div>
+
+    <div class="gif-wrap">
+      <!-- 🎨 CHANGE IMAGE: replace the URL in src="..." -->
+      <img id="mainImage"
+           src="https://media.giphy.com/media/10SvWCbt1ytWCc/giphy.gif"
+           alt="Cute character" />
+    </div>
+
+    <!-- 🎨 CHANGE QUESTION TEXT -->
+    <h1 id="question">Will you be my Girlfriend? 💕</h1>
+
+    <!-- 🎨 CHANGE SUBTITLE -->
+    <p class="tagline">You mean everything to me ♡</p>
+
+    <div class="divider"><span></span><em>♡</em><span></span></div>
+
+    <div class="btn-wrap">
+      <!-- 🎨 CHANGE YES BUTTON TEXT -->
+      <button id="yesBtn">Yes, of course! 💖</button>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ NO BUTTON IS HERE — outside the card, fixed to screen forever -->
+<!-- 🎨 CHANGE NO BUTTON TEXT -->
+<button id="noBtn">No</button>
+
+<script>
+  /* ══════════════════════════════════
+     🎨 CUSTOMISE BELOW
+  ══════════════════════════════════ */
+
+  // Messages shown each time No is clicked
+  const noTexts = [
+    "No",
+    "Are you sure? 🥺",
+    "Please think again!",
+    "You'll break my heart! 💔",
+    "I really like you a lot! 🙏",
+    "Just say yes please! 😢",
+    "Okay, try to catch me!"
+  ];
+
+  // Text after Yes clicked
+  const successText = "She said YES! 🎉💖 I'm the luckiest!";
+
+  // GIF after Yes clicked
+  const successGifSrc = "https://media.giphy.com/media/Jm15E8Q7m38b93kHnU/giphy.gif";
+
+  // Falling emojis theme
+  const petalEmojis = ["🌸","💗","🌹","💕","✨","💖","🌷","💝"];
+
+  /* ── Petals ── */
+  const petalContainer = document.getElementById('petals');
+  function spawnPetal() {
+    const el = document.createElement('span');
+    el.style.cssText = `
+      position:absolute; left:${Math.random()*100}%; top:-40px;
+      font-size:${14+Math.random()*18}px; opacity:0;
+      animation:petalFall ${5+Math.random()*6}s linear forwards;
+      pointer-events:none; user-select:none;
+    `;
+    el.textContent = petalEmojis[Math.floor(Math.random()*petalEmojis.length)];
+    petalContainer.appendChild(el);
+    el.addEventListener('animationend', () => el.remove());
+  }
+  setInterval(spawnPetal, 600);
+
+  /* ── Animated background ── */
+  const canvas = document.getElementById('bgCanvas');
+  const ctx    = canvas.getContext('2d');
+  let t = 0;
+  function resizeCanvas() { canvas.width=window.innerWidth; canvas.height=window.innerHeight; }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+  function drawBg() {
+    const w=canvas.width, h=canvas.height;
+    const cx=w/2+Math.sin(t*0.4)*120, cy=h/2+Math.cos(t*0.3)*80;
+    const grd=ctx.createRadialGradient(cx,cy,50,w/2,h/2,Math.max(w,h)*0.85);
+    grd.addColorStop(0,'#ffd0dc'); grd.addColorStop(0.4,'#f7a0b0');
+    grd.addColorStop(0.75,'#c8002f22'); grd.addColorStop(1,'#7a0019');
+    ctx.fillStyle=grd; ctx.fillRect(0,0,w,h);
+    const vig=ctx.createRadialGradient(w/2,h/2,h*0.2,w/2,h/2,h*0.9);
+    vig.addColorStop(0,'rgba(0,0,0,0)'); vig.addColorStop(1,'rgba(30,0,10,0.55)');
+    ctx.fillStyle=vig; ctx.fillRect(0,0,w,h);
+    t+=0.008; requestAnimationFrame(drawBg);
+  }
+  drawBg();
+
+  /* ── Buttons ── */
+  const noBtn    = document.getElementById('noBtn');
+  const yesBtn   = document.getElementById('yesBtn');
+  const question = document.getElementById('question');
+  const mainImage= document.getElementById('mainImage');
+
+  let clickCount  = 0;
+  let runawayMode = false;
+
+  /* Move No button to a random spot, always fully inside viewport */
+  function moveNoBtn() {
+    const bw = noBtn.offsetWidth  || 80;
+    const bh = noBtn.offsetHeight || 40;
+    noBtn.style.left      = (10 + Math.random() * (window.innerWidth  - bw - 20)) + 'px';
+    noBtn.style.top       = (10 + Math.random() * (window.innerHeight - bh - 20)) + 'px';
+    noBtn.style.bottom    = 'auto';
+    noBtn.style.transform = 'none'; /* clear the translateX(-50%) once runaway starts */
+  }
+
+  noBtn.addEventListener('click', () => {
+    if (runawayMode) return;
+
+    if (clickCount < noTexts.length - 1) {
+      clickCount++;
+      noBtn.textContent = noTexts[clickCount];
+
+      // Grow Yes button — capped at 26px max so it never overflows the card
+      const fs = parseFloat(window.getComputedStyle(yesBtn).fontSize);
+      const ns = Math.min(fs * 1.2, 26);
+      yesBtn.style.fontSize = ns + 'px';
+
+    } else {
+      // Activate runaway — jump to random spot immediately
+      runawayMode = true;
+      noBtn.textContent = "No";
+      moveNoBtn();
+    }
+  });
+
+  /* Runs away on hover */
+  noBtn.addEventListener('mouseover', () => {
+    if (runawayMode) moveNoBtn();
+  });
+
+  /* Yes clicked */
+  yesBtn.addEventListener('click', () => {
+    question.innerHTML = `<span class="success-msg">${successText}</span>`;
+    mainImage.src = successGifSrc;
+    noBtn.style.display  = 'none';
+    yesBtn.style.display = 'none';
+    document.querySelector('.tagline').style.display = 'none';
+    document.querySelector('.divider').style.display = 'none';
+    for (let i=0; i<16; i++) setTimeout(spawnPetal, i*100);
+
+    // ✅ Tuhe email bhejo jab woh YES dabe
+    emailjs.send(
+      "YOUR_SERVICE_ID",    // 🎨 STEP 2: apna Service ID
+      "YOUR_TEMPLATE_ID",   // 🎨 STEP 3: apna Template ID
+      {
+        message: "🎉 Usne YES daba diya! She said YES to be your Girlfriend! 💖",
+        time: new Date().toLocaleString()
+      }
+    ).then(() => {
+      console.log("Notification sent!");
+    }).catch((err) => {
+      console.log("Email error:", err);
+    });
+  });
+</script>
+</body>
+</html>
